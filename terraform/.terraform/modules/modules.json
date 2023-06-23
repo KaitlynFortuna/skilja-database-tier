@@ -1,1 +1,0 @@
-{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"route53","Source":"registry.terraform.io/terraform-aws-modules/route53/aws","Version":"2.10.2","Dir":".terraform/modules/route53"}]}
