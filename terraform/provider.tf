@@ -11,7 +11,7 @@ terraform {
 #sets me up with my aws account
 provider "aws" {
 
-  region = "us-east-1"
+  region = "us-east-2"
 
   access_key = ""
   secret_key = ""
