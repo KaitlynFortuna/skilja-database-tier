@@ -2,7 +2,7 @@ provider "aws" {
   region = "us-east-2"
 }
 
-module "dc_instance" {
+module "db_instance" {
 
   data "aws_availability_zones" "available" {}
 
