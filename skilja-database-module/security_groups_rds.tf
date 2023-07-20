@@ -1,19 +1,24 @@
 resource "aws_security_group" "rds" {
-  name                     = "name_rds"
-  vpc_database_subnet_arns = data.aws_ssm_parameter.database_subnet_arns.value
+  name   = "${var.unique_id}-sg"
+  vpc_id = data.aws_ssm_parameter.vpc_id.value
+}
 
-  ingress {
-    description                          = "TLS from VPC"
-    vpc_private_subnets_cidr_blocks_arns = data.aws_ssm_parameter.vpc_private_subnets_cidr_blocks_arns.value
-  }
+resource "aws_security_group_rule" "egress_group" {
+  type              = "egress"
+  to_port           = 0
+  protocol          = "-1"
+  from_port         = 0
+  security_group_id = aws_security_group.rds.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
 
-  egress {
-    vpc_private_subnets_cidr_blocks_arns = data.aws_ssm_parameter.vpc_private_subnets_cidr_blocks_arns.value
-  }
-
-  tags = {
-    Name = "name_rds"
-  }
+resource "aws_security_group_rule" "ingress_group" {
+  type              = "ingress"
+  to_port           = 0
+  protocol          = "-1"
+  from_port         = 0
+  security_group_id = aws_security_group.rds.id
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
 resource "aws_db_parameter_group" "name" {

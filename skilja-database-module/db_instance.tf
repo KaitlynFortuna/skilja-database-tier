@@ -4,47 +4,80 @@ provider "aws" {
 
 data "aws_availability_zones" "available" {}
 
-resource "aws_db_instance" "dbName" {
-  identifier        = "dbName"
-  instance_class    = "db.t3.micro"
-  allocated_storage = 5
-  engine            = "postgres"
-  engine_version    = "14.1"
-  username          = "user"
-  //Fix Bellow
-  password               = aws_secretsmanager_secret_version.rds_password_version.secret_string
-  db_subnet_group_name   = aws_db_subnet_group.dbName.name
-  vpc_security_group_ids = [aws_security_group.rds.id]
-  parameter_group_name   = aws_db_parameter_group.dbName.name
-  publicly_accessible    = true
-  skip_final_snapshot    = true
+# resource "aws_db_instance" "dbName" {
+#   identifier             = "${var.unique_id}-rds"
+#   instance_class         = "db.t3.medium"
+#   allocated_storage      = 5
+#   engine                 = "aurora-postgresql"
+#   engine_version         = "14.6"
+#   username               = "Skilja"
+#   password               = data.aws_secretsmanager_random_password.rds_password.random_password
+#   db_subnet_group_name   = aws_db_subnet_group.main.name
+#   vpc_security_group_ids = [aws_security_group.rds.id]
+#   parameter_group_name   = "default.aurora-postgresql14"
+#   publicly_accessible    = false
+#   skip_final_snapshot    = true
+# }
+
+resource "aws_rds_cluster" "postgresql" {
+  cluster_identifier      = "${var.unique_id}-rds"
+  engine                  = "aurora-postgresql"
+  engine_version          = "14.6"
+  availability_zones      = ["us-east-2a", "us-east-2b"]
+  database_name           = "Skilja"
+  master_username         = "Skilja"
+  master_password         = data.aws_secretsmanager_random_password.rds_password.random_password
+  backup_retention_period = 0
+  skip_final_snapshot     = true
+
+  lifecycle {
+    ignore_changes = [master_password, ]
+  }
+}
+
+resource "aws_rds_cluster_instance" "cluster_instances" {
+  count              = 1
+  identifier         = "aurora-cluster-demo-${count.index}"
+  cluster_identifier = aws_rds_cluster.postgresql.id
+  instance_class     = "db.t3.medium"
+  engine             = aws_rds_cluster.postgresql.engine
+  engine_version     = aws_rds_cluster.postgresql.engine_version
+}
+
+resource "aws_db_subnet_group" "main" {
+  name       = "main"
+  subnet_ids = split(",", data.aws_ssm_parameter.database_subnets.value)
+
+  tags = {
+    Name = "My DB subnet group"
+  }
 }
 
 // RDS Database outputs
 
-output "rds_hostname" {
-  description = "RDS instance hostname"
-  value       = aws_db_instance.dbName.address
-  sensitive   = true
-}
+# output "rds_hostname" {
+#   description = "RDS instance hostname"
+#   value       = aws_db_instance.dbName.address
+#   sensitive   = true
+# }
 
-output "rds_port" {
-  description = "RDS instance port"
-  value       = aws_db_instance.dbName.port
-  sensitive   = true
-}
+# output "rds_port" {
+#   description = "RDS instance port"
+#   value       = aws_db_instance.dbName.port
+#   sensitive   = true
+# }
 
-output "rds_username" {
-  description = "RDS instance root username"
-  value       = aws_db_instance.dbName.username
-  sensitive   = true
-}
+# output "rds_username" {
+#   description = "RDS instance root username"
+#   value       = aws_db_instance.dbName.username
+#   sensitive   = true
+# }
 
-resource "aws_launch_template" "rds" {
-  name_prefix   = "rds-sg-as"
-  image_id      = "ami-1a2b3c"
-  instance_type = "t2.micro"
-}
+# resource "aws_launch_template" "rds" {
+#   name_prefix   = "rds-sg-as"
+#   image_id      = "ami-1a2b3c"
+#   instance_type = "t2.micro"
+# }
 
 // Database creds
 
@@ -58,22 +91,21 @@ variable "region" {
 data "aws_secretsmanager_random_password" "rds_password" {
   password_length            = 32
   require_each_included_type = true
-  name                       = "rds_password"
 }
 
-locals {
-  rds_password_username = random_id.rds_password_username.hex
-}
+# locals {
+#   rds_password_username = random_id.rds_password_username.hex
+# }
 
 resource "aws_secretsmanager_secret" "rds_password_account_password" {
-  description             = local.rds_password_account_username
-  name                    = "${var.name}-rds_password_account_pw"
+  description             = "user"
+  name                    = "${var.unique_id}-rds_password_account"
   recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "rds_password_account_password" {
   secret_id     = aws_secretsmanager_secret.rds_password_account_password.id
-  secret_string = data.aws_secretsmanager_random_password.rds_password_account.random_password
+  secret_string = data.aws_secretsmanager_random_password.rds_password.random_password
   lifecycle {
     ignore_changes = [secret_string, ]
   }
@@ -87,12 +119,3 @@ resource "random_id" "rds_password_account_username" {
   byte_length = 7
   prefix      = "obsvc-"
 }
-
-#   // ec2
-
-#   resource "aws_launch_template" "ec2-g" {
-#     name_prefix   = "ec2-sg-as"
-#     image_id      = "ami-1a2b3c"
-#     instance_type = "t2.micro"
-#   }
-
